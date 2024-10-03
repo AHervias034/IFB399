@@ -1,4 +1,6 @@
 import os
+from datetime import datetime
+
 import pandas as pd
 import numpy as np
 import scipy.sparse as sp
@@ -6,7 +8,17 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics import mean_squared_error
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
+import logging
 
+
+# Function to configure the logging settings to write to a custom path
+def configure_logging(log_path):
+    logging.basicConfig(
+        filename=log_path,
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
 # Parallel function to process a chunk of data (mapping and sparse matrix conversion)
 def process_chunk(chunk, user_mapping, item_mapping):
@@ -20,6 +32,7 @@ def process_chunk(chunk, user_mapping, item_mapping):
     ratings = chunk['rating'].values
 
     return sp.csr_matrix((ratings, (rows, cols)), shape=(len(user_mapping), len(item_mapping)))
+
 
 # Function to read and process the CSV in parallel chunks
 def parallel_read_and_process(csv_file, user_mapping, item_mapping, num_rows=None, chunksize=10000, n_jobs=4):
@@ -43,10 +56,9 @@ def parallel_read_and_process(csv_file, user_mapping, item_mapping, num_rows=Non
 
     return sp.vstack(matrices)
 
-
 def recommend_items(user_id, svd, train_sparse, user_mapping, item_mapping, reverse_item_mapping, top_n=10):
     if user_id not in user_mapping:
-        print("User ID not found.")
+        logging.warning(f"User ID {user_id} not found.")
         return
 
     user_idx = user_mapping[user_id]
@@ -74,12 +86,14 @@ def recommend_items(user_id, svd, train_sparse, user_mapping, item_mapping, reve
 
     return recommended_items
 
+
 def run_recommendation_system(train_file, valid_file, test_file, num_train_rows=None, num_valid_rows=None,
                               num_test_rows=None):
     # Load the dataset to build user and item mappings
     all_data = pd.concat([pd.read_csv(train_file, nrows=num_train_rows),
                           pd.read_csv(valid_file, nrows=num_valid_rows),
                           pd.read_csv(test_file, nrows=num_test_rows)])
+    logging.info("Loaded dataset and created user and item mappings.")
 
     # Create user and item mappings
     user_mapping = {user_id: idx for idx, user_id in enumerate(all_data['user_id'].unique())}
@@ -90,51 +104,66 @@ def run_recommendation_system(train_file, valid_file, test_file, num_train_rows=
     reverse_item_mapping = {v: k for k, v in item_mapping.items()}
 
     # Parallel reading, mapping, and sparse matrix creation
-    print("Processing training data...")
+    logging.info("Processing training data...")
     train_sparse = parallel_read_and_process(train_file, user_mapping, item_mapping, num_rows=num_train_rows,
                                              chunksize=100000, n_jobs=multiprocessing.cpu_count())
 
-    print("Processing validation data...")
+    logging.info("Processing validation data...")
     valid_sparse = parallel_read_and_process(valid_file, user_mapping, item_mapping, num_rows=num_valid_rows,
                                              chunksize=10000, n_jobs=multiprocessing.cpu_count())
 
-    print("Processing test data...")
+    logging.info("Processing test data...")
     test_sparse = parallel_read_and_process(test_file, user_mapping, item_mapping, num_rows=num_test_rows,
                                             chunksize=10000, n_jobs=multiprocessing.cpu_count())
 
     # Apply TruncatedSVD for collaborative filtering
-    print("Fitting SVD model...")
+    logging.info("Fitting SVD model...")
     svd = TruncatedSVD(n_components=100, random_state=42)
     train_svd = svd.fit_transform(train_sparse)
+    logging.info("Model fitting completed.")
 
     # Transform validation and test data
-    print("Transforming validation data...")
+    logging.info("Transforming validation data...")
     valid_svd = svd.transform(valid_sparse)
 
-    print("Transforming test data...")
+    logging.info("Transforming test data...")
     test_svd = svd.transform(test_sparse)
 
     # Make predictions (inverse transform)
-    print("Making predictions on validation data...")
+    logging.info("Making predictions on validation data...")
     valid_predictions = svd.inverse_transform(valid_svd)
 
-    print("Making predictions on test data...")
+    logging.info("Making predictions on test data...")
     test_predictions = svd.inverse_transform(test_svd)
 
     # Calculate RMSE on validation data
     valid_ground_truth = valid_sparse.toarray()  # Convert sparse matrix to dense
     valid_rmse = np.sqrt(mean_squared_error(valid_ground_truth, valid_predictions))
+    logging.info(f"Validation RMSE: {valid_rmse}")
     print(f"Validation RMSE: {valid_rmse}")
 
     # Calculate RMSE on test data
     test_ground_truth = test_sparse.toarray()  # Convert sparse matrix to dense
     test_rmse = np.sqrt(mean_squared_error(test_ground_truth, test_predictions))
+    logging.info(f"Test RMSE: {test_rmse}")
     print(f"Test RMSE: {test_rmse}")
 
     return svd, train_sparse, user_mapping, item_mapping, reverse_user_mapping, reverse_item_mapping
 
-
 if __name__ == "__main__":
+    # Ask user for the log directory
+    log_directory = input("Enter the directory where you want to save the log file: ")
+    if not os.path.exists(log_directory):
+        os.makedirs(log_directory)
+
+    # Get the current date and time for the log file name
+    current_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    log_file_name = f"recommendation_system_{current_time}.log"
+    log_file_path = os.path.join(log_directory, log_file_name)
+
+    # Configure logging to use the specified path
+    configure_logging(log_file_path)
+
     # Ask user for the number of rows to use
     num_train_rows = int(input("Enter the number of training rows to use (or 0 for all): "))
     num_valid_rows = int(input("Enter the number of validation rows to use (or 0 for all): "))
@@ -159,5 +188,6 @@ if __name__ == "__main__":
     user_id = input("Enter user ID for recommendations: ")
     recommendations = recommend_items(user_id, svd, train_sparse, user_mapping, item_mapping, reverse_item_mapping,
                                       top_n=5)
-
-    print(f"Recommended items for user {user_id}: {recommendations}")
+    if recommendations:
+        logging.info(f"Recommended items for user {user_id}: {recommendations}")
+        print(f"Recommended items for user {user_id}: {recommendations}")
