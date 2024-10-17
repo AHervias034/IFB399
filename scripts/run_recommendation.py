@@ -80,7 +80,7 @@ if __name__ == "__main__":
         max_items = len(item_mapping)  # Get the total number of items
 
         # Set top_n to 20 if max_items is greater than 20, else use max_items
-        top_n = min(max_items, 20)
+        top_n = min(max_items, 1000)
 
         user_input_top_n = int(input(
             f"Enter the number of recommended items to display (max {top_n}): "))  # Specify number of recommendations
