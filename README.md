@@ -7,10 +7,8 @@
 - [Introduction](#introduction)
 - [Features](#features)
 - [Installation](#installation)
-- [Usage](#usage)
-- [Configuration](#configuration)
-- [Contributing](#contributing)
-- [License](#license)
+- [Running](#running)
+
 
 ---
 
@@ -48,7 +46,7 @@ To install and set up the project, follow these steps:
    ```bash
    https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_2023/benchmark/0core/last_out_w_his/Home_and_Kitchen.test.csv.gz
    ```
-## Usage
+## Running
 Its important the **step 2 in Installation** is done to run the system. To create necessary files to run the AI model.
 
 The implementation uses paralleling techniques to help in speeding up the process of calculating/reading data. This may cause error or slow down the process for low end devices.
