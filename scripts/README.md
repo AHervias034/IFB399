@@ -9,7 +9,6 @@ This project implements a recommendation system using collaborative filtering te
 - [Usage](#usage)
 - [Logging](#logging)
 - [Results](#results)
-- [License](#license)
 
 ## Features
 - Loads and processes user-item rating data from CSV files.
