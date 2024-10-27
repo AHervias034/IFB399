@@ -35,7 +35,7 @@ To install and set up the project, follow these steps:
    ```
 2. **Download the dataset for the AI mode:**
    
-   The download link below will download large files that needs to go in the following directory (scripts/data)
+   The download link below will download large files that needs to go in the following directory (scripts/data). Extract the files after downloading.
 
    ```bash
    https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_2023/benchmark/0core/last_out_w_his/Home_and_Kitchen.train.csv.gz
